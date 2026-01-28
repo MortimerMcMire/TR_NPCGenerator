@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Morrowind NPC Name Generator</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Georgia, serif;
+            background: #1a1a1a;
+            color: #d4c4a8;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #c9a959;
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: normal;
+            letter-spacing: 1px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        
+        .control-group {
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #a89a7c;
+            font-size: 14px;
+        }
+        
+        select {
+            width: 100%;
+            padding: 10px;
+            background: #2a2a2a;
+            border: 1px solid #4a4a3a;
+            color: #d4c4a8;
+            font-family: Georgia, serif;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        select:hover {
+            border-color: #6a6a5a;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px 20px;
+            background: #3a3a2a;
+            border: 1px solid #5a5a4a;
+            color: #c9a959;
+            font-family: Georgia, serif;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #4a4a3a;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .results {
+            margin-top: 25px;
+        }
+        
+        .results h2 {
+            color: #a89a7c;
+            font-size: 14px;
+            font-weight: normal;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #3a3a2a;
+            padding-bottom: 10px;
+        }
+        
+        .name-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .name-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid #2a2a2a;
+            font-size: 18px;
+        }
+        
+        .name-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .error {
+            color: #c97a59;
+            padding: 15px;
+            background: #2a2020;
+            border: 1px solid #4a3030;
+            margin-top: 20px;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #a89a7c;
+            padding: 20px;
+        }
+        
+        .stats {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #6a6a5a;
+            text-align: center;
+            line-height: 1.6;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #6a6a5a;
+            font-size: 14px;
+            margin-top: -20px;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Morrowind NPC Name Generator</h1>
+        <p class="subtitle">Vanilla + Tamriel Rebuilt</p>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="race">Race</label>
+                <select id="race">
+                    <option value="breton">Breton</option>
+                    <option value="darkelf" selected>Dark Elf</option>
+                    <option value="imperial">Imperial</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="sex">Sex</label>
+                <select id="sex">
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="source">Source</label>
+                <select id="source">
+                    <option value="all" selected>All</option>
+                    <option value="vanilla">Vanilla Only</option>
+                    <option value="tr">TR Only</option>
+                </select>
+            </div>
+        </div>
+        
+        <button id="generate">Generate Names</button>
+        
+        <div id="output"></div>
+    </div>
+    
+    <script src="js/levenshtein.js"></script>
+    <script src="js/generator.js"></script>
+</body>
+</html>

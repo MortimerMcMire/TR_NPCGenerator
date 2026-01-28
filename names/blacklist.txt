@@ -1,0 +1,12 @@
+# Morrowind NPC Name Generator - Lastname Blacklist
+# Add one lastname per line to exclude it from name generation
+# (Their firstnames can still be used)
+# Lines starting with # are comments
+
+Dren
+Hlaalu
+Indoril
+Redoran
+Telvanni
+Dagoth
+Ilvi
