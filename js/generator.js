@@ -139,6 +139,7 @@ const NPCGenerator = {
     async loadData(race, sex) {
         this.currentRace = race;
         this.currentSex = sex;
+        this._existingPairsCache = null;  // Clear cache on new load
         
         const firstnameDir = `npcs/${race}/firstnames_${sex}`;
         const lastnameDir = `npcs/${race}/lastnames`;
@@ -268,28 +269,60 @@ const NPCGenerator = {
     },
     
     /**
-     * Check if a combination is too similar to any possible existing NPC
-     * Uses Levenshtein distance to catch near-duplicates
+     * Check if a combination is too similar to any actual existing NPC
      * 
-     * Logic: If a firstname exists AND a lastname exists in any source,
-     * we check if this exact combo or a similar one could exist
+     * We need to check against actual firstname+lastname PAIRS that exist together,
+     * not just whether both parts exist somewhere independently.
+     * 
+     * Since we track names by source, we rebuild actual pairs from loaded data.
      */
     isTooSimilarToExisting(firstname, lastname) {
         const fnLower = firstname.toLowerCase();
         const lnLower = lastname.toLowerCase();
         
-        const allFirstnames = this.getAllFirstnamesLower();
-        const allLastnames = this.getAllLastnamesLower();
+        // Build set of actual existing pairs (cached after first call)
+        if (!this._existingPairsCache) {
+            this._existingPairsCache = new Set();
+            
+            // For each firstname, pair it with lastnames from the same source
+            // This approximates actual NPCs (same source = likely same mod = actual pair)
+            const fnBySource = {};
+            const lnBySource = {};
+            
+            this.allFirstnames.forEach(fn => {
+                if (!fnBySource[fn.source]) fnBySource[fn.source] = [];
+                fnBySource[fn.source].push(fn.name.toLowerCase());
+            });
+            
+            this.allLastnames.forEach(ln => {
+                if (!lnBySource[ln.source]) lnBySource[ln.source] = [];
+                lnBySource[ln.source].push(ln.name.toLowerCase());
+            });
+            
+            // Create pairs within each source
+            for (const source of Object.keys(fnBySource)) {
+                const fns = fnBySource[source] || [];
+                const lns = lnBySource[source] || [];
+                for (const fn of fns) {
+                    for (const ln of lns) {
+                        this._existingPairsCache.add(`${fn}|${ln}`);
+                    }
+                }
+            }
+        }
         
-        // If exact firstname AND exact lastname both exist, this combo likely exists
-        if (allFirstnames.has(fnLower) && allLastnames.has(lnLower)) {
+        const candidateKey = `${fnLower}|${lnLower}`;
+        
+        // Exact match check
+        if (this._existingPairsCache.has(candidateKey)) {
             return true;
         }
         
-        // Check Levenshtein distance - if firstname is too similar to an existing one
-        // AND the lastname exists, reject it
-        for (const existingFn of allFirstnames) {
-            if (allLastnames.has(lnLower)) {
+        // Levenshtein check: same lastname + similar firstname
+        for (const existing of this._existingPairsCache) {
+            const [existingFn, existingLn] = existing.split('|');
+            
+            if (existingLn === lnLower) {
                 if (areTooSimilar(fnLower, existingFn, 3)) {
                     return true;
                 }
