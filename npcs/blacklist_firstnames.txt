@@ -1,0 +1,4 @@
+# Firstname Blacklist
+# Add one firstname per line to exclude from generation
+# Lines starting with # are comments
+

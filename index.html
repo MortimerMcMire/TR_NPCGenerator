@@ -26,7 +26,7 @@
         h1 {
             color: #c9a959;
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 10px;
             font-weight: normal;
             letter-spacing: 1px;
         }
@@ -141,15 +141,21 @@
             text-align: center;
             color: #6a6a5a;
             font-size: 14px;
-            margin-top: -20px;
+            margin-top: -5px;
             margin-bottom: 30px;
+        }
+        
+        .info {
+            font-size: 11px;
+            color: #5a5a4a;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Morrowind NPC Name Generator</h1>
-        <p class="subtitle">Vanilla + Tamriel Rebuilt</p>
+        <p class="subtitle">Vanilla + TR + PC + SKY</p>
         
         <div class="controls">
             <div class="control-group">
@@ -170,12 +176,13 @@
             </div>
             
             <div class="control-group">
-                <label for="source">Source</label>
+                <label for="source">Name Source</label>
                 <select id="source">
-                    <option value="all" selected>All</option>
+                    <option value="all" selected>All Sources</option>
                     <option value="vanilla">Vanilla Only</option>
-                    <option value="tr">TR Only</option>
+                    <option value="expanded">TR + PC + SKY Only</option>
                 </select>
+                <div class="info">Which names to generate from. All names are checked regardless.</div>
             </div>
         </div>
         

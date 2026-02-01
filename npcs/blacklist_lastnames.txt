@@ -1,0 +1,12 @@
+# Lastname Blacklist
+# Add one lastname per line to exclude from generation
+# Lines starting with # are comments
+
+Dren
+Hlaalu
+Indoril
+Redoran
+Telvanni
+Dagoth
+Ilvi
+Septim
