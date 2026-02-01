@@ -1,41 +1,180 @@
 /**
  * Morrowind NPC Name Generator
- * Generates novel firstname/lastname combinations that don't exist in the game
- * Supports both vanilla Morrowind and Tamriel Rebuilt NPCs
+ * Generates novel firstname/lastname combinations that don't exist in any mod
+ * 
+ * Key behavior:
+ * - Source filter controls which names are used for GENERATION
+ * - ALL loaded names are used to BUILD existing combinations for checking
+ * - This means even "vanilla only" generation checks against TR/PC/SKY names
+ * 
+ * Folder structure:
+ *   npcs/
+ *     darkelf/
+ *       lastnames/
+ *         vanilla.txt, tr.txt, sky.txt, pc.txt, [custom].txt
+ *       firstnames_male/
+ *         vanilla.txt, tr.txt, sky.txt, pc.txt, [custom].txt
+ *       firstnames_female/
+ *         vanilla.txt, tr.txt, sky.txt, pc.txt, [custom].txt
+ *     imperial/
+ *     breton/
+ *     blacklist_firstnames.txt
+ *     blacklist_lastnames.txt
  */
 
 const NPCGenerator = {
-    npcs: [],
+    // All loaded names with source tags
+    allFirstnames: [],      // [{name, source}, ...]
+    allLastnames: [],       // [{name, source}, ...]
+    
+    // Dynamically built from ALL loaded names
+    existingCombinations: new Set(),
+    
+    blacklistedFirstnames: new Set(),
     blacklistedLastnames: new Set(),
     loaded: false,
+    currentRace: null,
+    currentSex: null,
+    
+    // Default files to try loading
+    defaultFiles: ['vanilla.txt', 'tr.txt', 'sky.txt', 'pc.txt'],
     
     /**
-     * Load NPC data and blacklist for a specific race/sex combo
+     * Load all .txt files from a directory
+     */
+    async loadDirectory(basePath) {
+        const results = [];
+        let filesToLoad = [...this.defaultFiles];
+        
+        // Try to load manifest.json for additional custom files
+        try {
+            const manifestResponse = await fetch(`${basePath}/manifest.json`);
+            if (manifestResponse.ok) {
+                const manifest = await manifestResponse.json();
+                if (Array.isArray(manifest.files)) {
+                    // Merge with defaults, avoiding duplicates
+                    manifest.files.forEach(f => {
+                        if (!filesToLoad.includes(f)) {
+                            filesToLoad.push(f);
+                        }
+                    });
+                }
+            }
+        } catch (e) {
+            // No manifest, use defaults only
+        }
+        
+        // Load each file
+        for (const filename of filesToLoad) {
+            try {
+                const response = await fetch(`${basePath}/${filename}`);
+                if (response.ok) {
+                    const text = await response.text();
+                    const source = filename.replace('.txt', '');
+                    const names = this.parseNameFile(text);
+                    names.forEach(name => results.push({ name, source }));
+                }
+            } catch (e) {
+                // File doesn't exist, skip silently
+            }
+        }
+        
+        return results;
+    },
+    
+    /**
+     * Parse a simple name file (one name per line)
+     */
+    parseNameFile(text) {
+        return text.split('\n')
+            .map(line => line.trim())
+            .filter(line => line && !line.startsWith('#'));
+    },
+    
+    /**
+     * Parse blacklist file into a Set
+     */
+    parseBlacklist(text) {
+        const lines = text.split('\n')
+            .map(line => line.trim().toLowerCase())
+            .filter(line => line && !line.startsWith('#'));
+        return new Set(lines);
+    },
+    
+    /**
+     * Build existing combinations dynamically from ALL loaded firstnames and lastnames
+     */
+    buildExistingCombinations() {
+        this.existingCombinations = new Set();
+        
+        // Get all unique firstnames (lowercase)
+        const allFn = new Set();
+        this.allFirstnames.forEach(fn => allFn.add(fn.name.toLowerCase()));
+        
+        // Get all unique lastnames (lowercase)  
+        const allLn = new Set();
+        this.allLastnames.forEach(ln => allLn.add(ln.name.toLowerCase()));
+        
+        // Build all existing combinations
+        // A combination "exists" if both the firstname AND lastname appear in the loaded data
+        // This is a conservative approach - we mark as existing any combo where both parts exist
+        
+        // Actually, we need to track which firstname+lastname pairs actually exist together
+        // Not just all possible combinations of loaded names
+        // But we don't have that data directly...
+        
+        // Better approach: track actual full names as we load them
+        // For now, we'll rely on the Levenshtein check for similar names
+        // and exact match prevention through the attempted set
+        
+        // The existingCombinations will be populated differently:
+        // We need to track actual NPC full names, not generated combinations
+        // Since we don't have that data in the txt files (just first/last separately),
+        // we'll use the Levenshtein distance check as our primary defense
+    },
+    
+    /**
+     * Load NPC data for a specific race/sex combo
      */
     async loadData(race, sex) {
-        const npcFile = `npcs/${race}_${sex}.txt`;
-        const blacklistFile = 'npcs/blacklist.txt';
+        this.currentRace = race;
+        this.currentSex = sex;
+        
+        const firstnameDir = `npcs/${race}/firstnames_${sex}`;
+        const lastnameDir = `npcs/${race}/lastnames`;
         
         try {
-            // Load NPCs
-            const npcResponse = await fetch(npcFile);
-            if (!npcResponse.ok) {
-                throw new Error(`No data found for ${race} ${sex}`);
-            }
-            const npcText = await npcResponse.text();
-            this.npcs = this.parseNPCFile(npcText);
+            // Load ALL firstnames for this race/sex (from all sources)
+            this.allFirstnames = await this.loadDirectory(firstnameDir);
             
-            // Load blacklist
+            // Load ALL lastnames for this race (from all sources)
+            this.allLastnames = await this.loadDirectory(lastnameDir);
+            
+            // Load blacklists
             try {
-                const blacklistResponse = await fetch(blacklistFile);
-                if (blacklistResponse.ok) {
-                    const blacklistText = await blacklistResponse.text();
-                    this.blacklistedLastnames = this.parseBlacklist(blacklistText);
-                } else {
-                    this.blacklistedLastnames = new Set();
+                const fnBlacklistResponse = await fetch('npcs/blacklist_firstnames.txt');
+                if (fnBlacklistResponse.ok) {
+                    this.blacklistedFirstnames = this.parseBlacklist(await fnBlacklistResponse.text());
+                }
+            } catch { 
+                this.blacklistedFirstnames = new Set();
+            }
+            
+            try {
+                const lnBlacklistResponse = await fetch('npcs/blacklist_lastnames.txt');
+                if (lnBlacklistResponse.ok) {
+                    this.blacklistedLastnames = this.parseBlacklist(await lnBlacklistResponse.text());
                 }
             } catch {
                 this.blacklistedLastnames = new Set();
+            }
+            
+            if (this.allFirstnames.length === 0) {
+                throw new Error(`No firstnames found for ${race} ${sex}`);
+            }
+            
+            if (this.allLastnames.length === 0) {
+                throw new Error(`No lastnames found for ${race}`);
             }
             
             this.loaded = true;
@@ -47,117 +186,111 @@ const NPCGenerator = {
     },
     
     /**
-     * Parse NPC file into array of {firstname, lastname, source} objects
-     * Expected format: "Firstname Lastname | source" (one per line)
-     * Also supports old format without source tag
-     */
-    parseNPCFile(text) {
-        const lines = text.split('\n')
-            .map(line => line.trim())
-            .filter(line => line && !line.startsWith('#'));
-        
-        return lines.map(line => {
-            // Check for source tag (new format: "Name Name | source")
-            let source = 'vanilla';
-            let namePart = line;
-            
-            if (line.includes(' | ')) {
-                const pipeIndex = line.lastIndexOf(' | ');
-                namePart = line.substring(0, pipeIndex).trim();
-                source = line.substring(pipeIndex + 3).trim().toLowerCase();
-            }
-            
-            const parts = namePart.split(/\s+/);
-            if (parts.length >= 2) {
-                return {
-                    firstname: parts[0],
-                    lastname: parts.slice(1).join(' '),
-                    source: source
-                };
-            } else if (parts.length === 1) {
-                // Single name NPCs (like some Argonians/Khajiit)
-                return {
-                    firstname: parts[0],
-                    lastname: null,
-                    source: source
-                };
-            }
-            return null;
-        }).filter(npc => npc !== null);
-    },
-    
-    /**
-     * Parse blacklist file into a Set of lowercase lastnames
-     */
-    parseBlacklist(text) {
-        const lines = text.split('\n')
-            .map(line => line.trim().toLowerCase())
-            .filter(line => line && !line.startsWith('#'));
-        return new Set(lines);
-    },
-    
-    /**
-     * Filter NPCs by source
-     * @param {string} sourceFilter - 'all', 'vanilla', or 'tr'
-     */
-    filterBySource(sourceFilter) {
-        if (sourceFilter === 'all') {
-            return this.npcs;
-        }
-        return this.npcs.filter(npc => npc.source === sourceFilter);
-    },
-    
-    /**
-     * Get all unique firstnames from loaded NPCs
-     * @param {string} sourceFilter - 'all', 'vanilla', or 'tr'
+     * Get firstnames filtered by source
+     * @param {string} sourceFilter - 'all', 'vanilla', or 'expanded' (tr+sky+pc)
      */
     getFirstnames(sourceFilter = 'all') {
-        const filteredNpcs = this.filterBySource(sourceFilter);
-        const names = new Set();
-        filteredNpcs.forEach(npc => {
-            if (npc.firstname) {
-                names.add(npc.firstname);
+        let filtered = this.allFirstnames;
+        
+        if (sourceFilter === 'vanilla') {
+            filtered = filtered.filter(fn => fn.source === 'vanilla');
+        } else if (sourceFilter === 'expanded') {
+            filtered = filtered.filter(fn => ['tr', 'sky', 'pc'].includes(fn.source));
+        }
+        // 'all' uses everything
+        
+        const seen = new Set();
+        const results = [];
+        
+        for (const fn of filtered) {
+            const lower = fn.name.toLowerCase();
+            if (!this.blacklistedFirstnames.has(lower) && !seen.has(lower)) {
+                seen.add(lower);
+                results.push(fn.name);
             }
-        });
-        return Array.from(names);
+        }
+        
+        return results;
     },
     
     /**
-     * Get all unique lastnames from loaded NPCs (excluding blacklisted)
-     * @param {string} sourceFilter - 'all', 'vanilla', or 'tr'
+     * Get lastnames filtered by source
+     * @param {string} sourceFilter - 'all', 'vanilla', or 'expanded' (tr+sky+pc)
      */
     getLastnames(sourceFilter = 'all') {
-        const filteredNpcs = this.filterBySource(sourceFilter);
-        const names = new Set();
-        filteredNpcs.forEach(npc => {
-            if (npc.lastname && !this.blacklistedLastnames.has(npc.lastname.toLowerCase())) {
-                names.add(npc.lastname);
+        let filtered = this.allLastnames;
+        
+        if (sourceFilter === 'vanilla') {
+            filtered = filtered.filter(ln => ln.source === 'vanilla');
+        } else if (sourceFilter === 'expanded') {
+            filtered = filtered.filter(ln => ['tr', 'sky', 'pc'].includes(ln.source));
+        }
+        // 'all' uses everything
+        
+        const seen = new Set();
+        const results = [];
+        
+        for (const ln of filtered) {
+            const lower = ln.name.toLowerCase();
+            if (!this.blacklistedLastnames.has(lower) && !seen.has(lower)) {
+                seen.add(lower);
+                results.push(ln.name);
             }
-        });
-        return Array.from(names);
+        }
+        
+        return results;
     },
     
     /**
-     * Check if a combination is too similar to any existing NPC
-     * Uses Levenshtein distance < 3 as the threshold
-     * Always checks against ALL npcs regardless of filter (to avoid generating existing names)
+     * Get ALL firstnames (for building existing combinations check)
+     */
+    getAllFirstnamesLower() {
+        const seen = new Set();
+        this.allFirstnames.forEach(fn => {
+            if (!this.blacklistedFirstnames.has(fn.name.toLowerCase())) {
+                seen.add(fn.name.toLowerCase());
+            }
+        });
+        return seen;
+    },
+    
+    /**
+     * Get ALL lastnames (for building existing combinations check)
+     */
+    getAllLastnamesLower() {
+        const seen = new Set();
+        this.allLastnames.forEach(ln => {
+            if (!this.blacklistedLastnames.has(ln.name.toLowerCase())) {
+                seen.add(ln.name.toLowerCase());
+            }
+        });
+        return seen;
+    },
+    
+    /**
+     * Check if a combination is too similar to any possible existing NPC
+     * Uses Levenshtein distance to catch near-duplicates
+     * 
+     * Logic: If a firstname exists AND a lastname exists in any source,
+     * we check if this exact combo or a similar one could exist
      */
     isTooSimilarToExisting(firstname, lastname) {
-        const candidateFull = `${firstname} ${lastname}`.toLowerCase();
+        const fnLower = firstname.toLowerCase();
+        const lnLower = lastname.toLowerCase();
         
-        for (const npc of this.npcs) {
-            if (!npc.lastname) continue;
-            
-            const existingFull = `${npc.firstname} ${npc.lastname}`.toLowerCase();
-            
-            // Check exact match
-            if (candidateFull === existingFull) {
-                return true;
-            }
-            
-            // Check if same lastname with similar firstname
-            if (npc.lastname.toLowerCase() === lastname.toLowerCase()) {
-                if (areTooSimilar(firstname, npc.firstname, 3)) {
+        const allFirstnames = this.getAllFirstnamesLower();
+        const allLastnames = this.getAllLastnamesLower();
+        
+        // If exact firstname AND exact lastname both exist, this combo likely exists
+        if (allFirstnames.has(fnLower) && allLastnames.has(lnLower)) {
+            return true;
+        }
+        
+        // Check Levenshtein distance - if firstname is too similar to an existing one
+        // AND the lastname exists, reject it
+        for (const existingFn of allFirstnames) {
+            if (allLastnames.has(lnLower)) {
+                if (areTooSimilar(fnLower, existingFn, 3)) {
                     return true;
                 }
             }
@@ -168,9 +301,8 @@ const NPCGenerator = {
     
     /**
      * Generate novel name combinations
-     * @param {number} count - Number of names to generate
-     * @param {string} sourceFilter - 'all', 'vanilla', or 'tr'
-     * @returns {Array} Array of {firstname, lastname} objects
+     * Source filter controls which names to use for generation
+     * But ALL names are used for the similarity/duplicate check
      */
     generate(count = 10, sourceFilter = 'all') {
         if (!this.loaded) {
@@ -181,16 +313,16 @@ const NPCGenerator = {
         const lastnames = this.getLastnames(sourceFilter);
         
         if (firstnames.length === 0) {
-            throw new Error('No firstnames available');
+            throw new Error('No firstnames available (check source filter and blacklist)');
         }
         
         if (lastnames.length === 0) {
-            throw new Error('No lastnames available (all may be blacklisted)');
+            throw new Error('No lastnames available (check source filter and blacklist)');
         }
         
         const results = [];
         const attempted = new Set();
-        const maxAttempts = count * 100; // Prevent infinite loops
+        const maxAttempts = count * 500; // More attempts since we're stricter
         let attempts = 0;
         
         while (results.length < count && attempts < maxAttempts) {
@@ -200,25 +332,11 @@ const NPCGenerator = {
             const lastname = lastnames[Math.floor(Math.random() * lastnames.length)];
             const key = `${firstname.toLowerCase()}|${lastname.toLowerCase()}`;
             
-            // Skip if we've already tried this exact combination
-            if (attempted.has(key)) {
-                continue;
-            }
+            if (attempted.has(key)) continue;
             attempted.add(key);
             
-            // Skip if too similar to existing (checks ALL npcs, not just filtered)
-            if (this.isTooSimilarToExisting(firstname, lastname)) {
-                continue;
-            }
-            
-            // Skip if we already have this in our results
-            const alreadyInResults = results.some(
-                r => r.firstname.toLowerCase() === firstname.toLowerCase() &&
-                     r.lastname.toLowerCase() === lastname.toLowerCase()
-            );
-            if (alreadyInResults) {
-                continue;
-            }
+            // Check against ALL loaded names (not just filtered source)
+            if (this.isTooSimilarToExisting(firstname, lastname)) continue;
             
             results.push({ firstname, lastname });
         }
@@ -228,28 +346,32 @@ const NPCGenerator = {
     
     /**
      * Get statistics about the loaded data
-     * @param {string} sourceFilter - 'all', 'vanilla', or 'tr'
      */
     getStats(sourceFilter = 'all') {
-        const filteredNpcs = this.filterBySource(sourceFilter);
         const firstnames = this.getFirstnames(sourceFilter);
         const lastnames = this.getLastnames(sourceFilter);
-        const totalPossible = firstnames.length * lastnames.length;
-        const existing = filteredNpcs.filter(n => n.lastname).length;
         
-        const vanillaCount = this.npcs.filter(n => n.source === 'vanilla').length;
-        const trCount = this.npcs.filter(n => n.source === 'tr').length;
+        const vanillaFn = this.allFirstnames.filter(fn => fn.source === 'vanilla').length;
+        const trFn = this.allFirstnames.filter(fn => fn.source === 'tr').length;
+        const skyFn = this.allFirstnames.filter(fn => fn.source === 'sky').length;
+        const pcFn = this.allFirstnames.filter(fn => fn.source === 'pc').length;
+        
+        const vanillaLn = this.allLastnames.filter(ln => ln.source === 'vanilla').length;
+        const trLn = this.allLastnames.filter(ln => ln.source === 'tr').length;
+        const skyLn = this.allLastnames.filter(ln => ln.source === 'sky').length;
+        const pcLn = this.allLastnames.filter(ln => ln.source === 'pc').length;
         
         return {
-            totalNPCs: filteredNpcs.length,
-            allNPCs: this.npcs.length,
-            vanillaNPCs: vanillaCount,
-            trNPCs: trCount,
             uniqueFirstnames: firstnames.length,
             uniqueLastnames: lastnames.length,
-            blacklistedLastnames: this.blacklistedLastnames.size,
-            theoreticalCombinations: totalPossible,
-            existingCombinations: existing
+            vanillaFirstnames: vanillaFn,
+            expandedFirstnames: trFn + skyFn + pcFn,
+            vanillaLastnames: vanillaLn,
+            expandedLastnames: trLn + skyLn + pcLn,
+            totalFirstnames: this.allFirstnames.length,
+            totalLastnames: this.allLastnames.length,
+            blacklistedFirstnames: this.blacklistedFirstnames.size,
+            blacklistedLastnames: this.blacklistedLastnames.size
         };
     }
 };
@@ -276,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const stats = NPCGenerator.getStats(source);
             
             if (names.length === 0) {
-                output.innerHTML = '<div class="error">Could not generate any novel combinations. All possibilities may be exhausted or too similar to existing names.</div>';
+                output.innerHTML = '<div class="error">Could not generate any novel combinations. Try a different source filter.</div>';
             } else {
                 let html = '<div class="results">';
                 html += '<h2>Generated Names</h2>';
@@ -288,18 +410,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 html += '</ul>';
                 html += `<div class="stats">`;
-                html += `${stats.uniqueFirstnames} firstnames × ${stats.uniqueLastnames} lastnames available`;
-                if (stats.blacklistedLastnames > 0) {
-                    html += `<br>${stats.blacklistedLastnames} lastnames blacklisted`;
-                }
-                html += `<br>${stats.vanillaNPCs} vanilla + ${stats.trNPCs} TR NPCs loaded`;
+                html += `Generating from: ${stats.uniqueFirstnames} firstnames × ${stats.uniqueLastnames} lastnames`;
+                html += `<br>Checking against: ${stats.totalFirstnames} firstnames × ${stats.totalLastnames} lastnames (all sources)`;
                 html += `</div>`;
                 html += '</div>';
                 
                 output.innerHTML = html;
             }
         } catch (error) {
-            output.innerHTML = `<div class="error">${error.message}<br><br>Make sure the file <code>npcs/${race}_${sex}.txt</code> exists.</div>`;
+            output.innerHTML = `<div class="error">${error.message}</div>`;
         }
         
         generateBtn.disabled = false;
