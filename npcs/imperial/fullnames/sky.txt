@@ -1,0 +1,43 @@
+# Imperial full names from Project Cyrodiil
+# Used for duplicate checking
+
+Abelle Vassinia
+Albon Tursus
+Aurius Jaronich
+Belav Tursus
+Cacitus Suspilus
+Caponicus Valian
+Carincia Pontus
+Cascus Daro
+Franco Azarius
+Frinad Cantor
+Hasalo Jactus
+Hestulla Pulimus
+Iertus Vancor
+Iniel Cannis
+Iuleus Vancor
+Jodarus Belechor
+Julas Percio
+Jusidia Lerus
+Karrus Janos
+Larina Saccus
+Lelena Aurtius
+Mabon Cestus
+Marcurio Ampis
+Mariand Annius
+Merro Geldius
+Nerus Lalrav
+Odavus Codicus
+Odessa Iullus
+Olvus Furotis
+Ondel Varus
+Paratius Barbula
+Pellatia Cassius
+Plilav Pannus
+Ranus Jaldo
+Romondor Pursus
+Secucius Ceria
+Varino Altus
+Vodocabor Cassius
+Vodocor Cassius
+Xander Aurtius

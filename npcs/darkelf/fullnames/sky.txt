@@ -1,0 +1,9 @@
+# Dark Elf full names from Project Cyrodiil
+# Used for duplicate checking
+
+Dralen Guls
+Ildos Norvor
+Ravos Terandas
+Rilor Draan
+Tivela Tyravel
+Torvayn Fels

@@ -1,0 +1,25 @@
+# Dark Elf full names from Project Cyrodiil
+# Used for duplicate checking
+
+Adosu Dovayn
+Alur Orelyn
+Alvur Relds
+Balor Firyn
+Bolnora Felas
+Breva Rondas
+Corethyn Surano
+Dalmir Varam
+Dandryn Arethyn
+Danura Dalen
+Forisa Nerul
+Hlavas Athram
+Llarara Viake
+Marena Sethan
+Neleth Sirayn
+Nevynasa Varalen
+Resatha Orelu
+Ruleth Feleryn
+Rythus Raran
+Valasa Sadri
+Venas Arethan
+Volas Andathril
